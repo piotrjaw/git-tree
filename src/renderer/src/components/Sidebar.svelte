@@ -11,11 +11,10 @@
     addWatchedFolder,
     loadSettings
   } from '../stores/settings.svelte'
-  import { collapseAll, getShowSettings, setShowSettings } from '../stores/ui.svelte'
+  import { getShowSettings, setShowSettings } from '../stores/ui.svelte'
 
   const ICON_REFRESH = '\u21BB'
   const ICON_LOADING = '\u23F3'
-  const ICON_COLLAPSE = '\u2BC8'
   const ICON_SETTINGS = '\u2699'
 
   let scanning = $state(false)
@@ -80,9 +79,6 @@
     </button>
     <button class="btn-icon" onclick={handleRefresh} disabled={loading} title="Refresh all">
       {loading ? ICON_LOADING : ICON_REFRESH}
-    </button>
-    <button class="btn-icon" onclick={() => collapseAll()} title="Collapse all">
-      {ICON_COLLAPSE}
     </button>
     <button
       class="btn-icon"
