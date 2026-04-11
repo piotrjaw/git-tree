@@ -9,26 +9,56 @@
 
   let { diff, loading, onclose }: Props = $props()
 
+  let leftPaneEl = $state<HTMLDivElement | null>(null)
+  let rightPaneEl = $state<HTMLDivElement | null>(null)
+  let syncing = false
+
+  function syncScroll(source: HTMLDivElement, target: HTMLDivElement) {
+    if (syncing) return
+    syncing = true
+    target.scrollLeft = source.scrollLeft
+    target.scrollTop = source.scrollTop
+    syncing = false
+  }
+
+  $effect(() => {
+    if (leftPaneEl && rightPaneEl) {
+      const l = leftPaneEl
+      const r = rightPaneEl
+      const onLeftScroll = () => syncScroll(l, r)
+      const onRightScroll = () => syncScroll(r, l)
+      l.addEventListener('scroll', onLeftScroll)
+      r.addEventListener('scroll', onRightScroll)
+      return () => {
+        l.removeEventListener('scroll', onLeftScroll)
+        r.removeEventListener('scroll', onRightScroll)
+      }
+    }
+  })
+
   // Build paired rows for side-by-side display
   interface SideBySideRow {
     oldLineNo: number | null
     oldContent: string
-    oldType: 'add' | 'del' | 'context' | 'empty'
+    oldType: 'add' | 'del' | 'context' | 'empty' | 'separator'
     newLineNo: number | null
     newContent: string
-    newType: 'add' | 'del' | 'context' | 'empty'
+    newType: 'add' | 'del' | 'context' | 'empty' | 'separator'
   }
 
   let rows = $derived.by(() => {
     if (!diff) return []
     const result: SideBySideRow[] = []
 
-    for (const hunk of diff.hunks) {
-      // Add hunk separator
-      result.push({
-        oldLineNo: null, oldContent: '...', oldType: 'context',
-        newLineNo: null, newContent: '...', newType: 'context'
-      })
+    for (let h = 0; h < diff.hunks.length; h++) {
+      const hunk = diff.hunks[h]
+      // Add hunk separator — skip only if first hunk starts at line 1
+      if (h > 0 || (hunk.oldStart > 1 && hunk.newStart > 1)) {
+        result.push({
+          oldLineNo: null, oldContent: '', oldType: 'separator',
+          newLineNo: null, newContent: '', newType: 'separator'
+        })
+      }
 
       let i = 0
       while (i < hunk.lines.length) {
@@ -92,37 +122,36 @@
     </div>
   {:else if diff}
     <div class="diff-content">
-      <table class="diff-table">
-        <colgroup>
-          <col class="line-no-col" />
-          <col class="code-col" />
-          <col class="gutter-col" />
-          <col class="line-no-col" />
-          <col class="code-col" />
-        </colgroup>
-        <tbody>
-          {#each rows as row, i (i)}
-            <tr class="diff-row">
-              <!-- Old side -->
-              <td class="line-no {row.oldType}">{row.oldLineNo ?? ''}</td>
-              <td class="code {row.oldType}">
-                {#if row.oldType !== 'empty'}
-                  <pre>{row.oldContent}</pre>
-                {/if}
-              </td>
-              <!-- Gutter -->
-              <td class="gutter"></td>
-              <!-- New side -->
-              <td class="line-no {row.newType}">{row.newLineNo ?? ''}</td>
-              <td class="code {row.newType}">
-                {#if row.newType !== 'empty'}
-                  <pre>{row.newContent}</pre>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+      <!-- Old (left) pane -->
+      <div class="diff-pane" bind:this={leftPaneEl}>
+        <table class="diff-table">
+          <tbody>
+            {#each rows as row, i (i)}
+              <tr class="diff-row">
+                <td class="line-no {row.oldType}">{row.oldType === 'separator' ? '...' : (row.oldLineNo ?? '')}</td>
+                <td class="code {row.oldType}"><pre>{row.oldType !== 'empty' && row.oldType !== 'separator' ? row.oldContent : ''}</pre></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Gutter -->
+      <div class="gutter"></div>
+
+      <!-- New (right) pane -->
+      <div class="diff-pane" bind:this={rightPaneEl}>
+        <table class="diff-table">
+          <tbody>
+            {#each rows as row, i (i)}
+              <tr class="diff-row">
+                <td class="line-no {row.newType}">{row.newType === 'separator' ? '...' : (row.newLineNo ?? '')}</td>
+                <td class="code {row.newType}"><pre>{row.newType !== 'empty' && row.newType !== 'separator' ? row.newContent : ''}</pre></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     </div>
   {/if}
 </div>
@@ -199,52 +228,53 @@
 
   .diff-content {
     flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .diff-pane {
+    flex: 1;
     overflow: auto;
+    min-width: 0;
+  }
+
+  .gutter {
+    width: 4px;
+    flex-shrink: 0;
+    background: var(--color-border);
   }
 
   .diff-table {
-    width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.5;
-    table-layout: fixed;
-  }
-
-  .line-no-col {
-    width: 50px;
-  }
-
-  .code-col {
-    width: calc(50% - 27px);
-  }
-
-  .gutter-col {
-    width: 4px;
+    min-width: 100%;
   }
 
   .diff-row {
     border-bottom: none;
+    height: 18px;
   }
 
   .line-no {
     text-align: right;
     padding: 0 8px;
-    color: var(--color-text-muted);
-    opacity: 0.5;
+    color: rgba(139, 141, 148, 0.5);
     user-select: none;
     vertical-align: top;
     font-size: 11px;
-  }
-
-  .gutter {
-    background: var(--color-border);
+    width: 50px;
+    min-width: 50px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--color-bg);
   }
 
   .code {
     padding: 0 8px;
     white-space: pre;
-    overflow: hidden;
     vertical-align: top;
   }
 
@@ -252,14 +282,16 @@
     margin: 0;
     font: inherit;
     white-space: pre;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-height: 18px;
   }
 
   /* Context lines */
-  .code.context,
-  .line-no.context {
+  .code.context {
     background: transparent;
+  }
+
+  .line-no.context {
+    background: var(--color-bg);
   }
 
   /* Deletions (old side - red) */
@@ -269,7 +301,7 @@
   }
 
   .line-no.del {
-    background: rgba(248, 81, 73, 0.1);
+    background: #2d1b1e;
   }
 
   /* Additions (new side - green) */
@@ -279,7 +311,21 @@
   }
 
   .line-no.add {
-    background: rgba(63, 185, 80, 0.1);
+    background: #1b2d1e;
+  }
+
+  /* Separator (hidden lines indicator) */
+  .line-no.separator {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    opacity: 0.8;
+    text-align: center;
+  }
+
+  .code.separator {
+    background: var(--color-surface);
+    border-top: 1px dashed var(--color-border);
+    border-bottom: 1px dashed var(--color-border);
   }
 
   /* Empty (padding for unmatched del/add) */
@@ -293,13 +339,13 @@
       background: rgba(207, 34, 46, 0.1);
     }
     .line-no.del {
-      background: rgba(207, 34, 46, 0.06);
+      background: #fef0f0;
     }
     .code.add {
       background: rgba(26, 127, 55, 0.1);
     }
     .line-no.add {
-      background: rgba(26, 127, 55, 0.06);
+      background: #eef8f0;
     }
   }
 </style>
