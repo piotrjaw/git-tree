@@ -160,6 +160,7 @@
     height: 100%;
     overflow-y: auto;
     padding: 16px 20px;
+    padding-top: 36px; /* space for macOS titlebar drag region */
   }
 
   .repo-header {

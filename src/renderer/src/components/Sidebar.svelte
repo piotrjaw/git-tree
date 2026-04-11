@@ -13,6 +13,11 @@
   } from '../stores/settings.svelte'
   import { collapseAll, getShowSettings, setShowSettings } from '../stores/ui.svelte'
 
+  const ICON_REFRESH = '\u21BB'
+  const ICON_LOADING = '\u23F3'
+  const ICON_COLLAPSE = '\u2BC8'
+  const ICON_SETTINGS = '\u2699'
+
   let scanning = $state(false)
 
   async function handleAddFolder() {
@@ -74,10 +79,10 @@
       {scanning ? 'Scanning...' : '+ Add Folder'}
     </button>
     <button class="btn-icon" onclick={handleRefresh} disabled={loading} title="Refresh all">
-      {loading ? '\u23F3' : '\u21BB'}
+      {loading ? ICON_LOADING : ICON_REFRESH}
     </button>
     <button class="btn-icon" onclick={() => collapseAll()} title="Collapse all">
-      \u2BC8
+      {ICON_COLLAPSE}
     </button>
     <button
       class="btn-icon"
@@ -85,7 +90,7 @@
       onclick={() => setShowSettings(!getShowSettings())}
       title="Settings"
     >
-      \u2699
+      {ICON_SETTINGS}
     </button>
   </div>
 
@@ -121,6 +126,7 @@
     display: flex;
     gap: 4px;
     padding: 8px;
+    padding-top: 36px; /* space for macOS titlebar drag region */
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
   }
