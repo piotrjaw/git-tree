@@ -2,6 +2,13 @@
   import type { GraphData, GraphLayoutNode } from '@shared/types'
   import { getSelectedRepoPath } from '../stores/ui.svelte'
 
+  interface Props {
+    onSelectCommit?: (hash: string) => void
+    selectedCommitHash?: string | null
+  }
+
+  let { onSelectCommit, selectedCommitHash = null }: Props = $props()
+
   const ROW_HEIGHT = 32
   const COL_WIDTH = 16
   const NODE_RADIUS = 4
@@ -237,7 +244,13 @@
         <!-- Commit rows -->
         <div class="commit-rows" style="margin-left: {graphColumnWidth}px">
           {#each visibleNodes as node (node.commit.hash)}
-            <div class="commit-row" style="height: {ROW_HEIGHT}px">
+            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+            <div
+              class="commit-row"
+              class:selected={selectedCommitHash === node.commit.hash}
+              style="height: {ROW_HEIGHT}px"
+              onclick={() => onSelectCommit?.(node.commit.hash)}
+            >
               <!-- Ref badges -->
               {#if node.commit.refs.length > 0}
                 <span class="refs">
@@ -348,6 +361,14 @@
     padding: 0 12px 0 0;
     font-size: 13px;
     white-space: nowrap;
+  }
+
+  .commit-row {
+    cursor: pointer;
+  }
+
+  .commit-row.selected {
+    background: var(--color-selected);
   }
 
   .commit-row:hover {

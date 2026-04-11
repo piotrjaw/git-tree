@@ -1,5 +1,5 @@
 import { ipcMain, dialog, type BrowserWindow } from 'electron'
-import { getRepoStatus, getCommitGraph } from './git-service'
+import { getRepoStatus, getCommitGraph, getCommitDetail } from './git-service'
 import { scanForRepos } from './repo-scanner'
 import { getSettings, setSettings } from './store'
 import { startWatching, stopWatching } from './file-watcher'
@@ -25,6 +25,10 @@ export function registerIpcHandlers(window: BrowserWindow): void {
 
   ipcMain.handle('git:get-commit-graph', async (_event, repoPath: string) => {
     return getCommitGraph(repoPath)
+  })
+
+  ipcMain.handle('git:get-commit-detail', async (_event, repoPath: string, hash: string) => {
+    return getCommitDetail(repoPath, hash)
   })
 
   ipcMain.handle('dialog:pick-folder', async () => {

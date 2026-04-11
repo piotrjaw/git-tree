@@ -7,7 +7,9 @@ import type {
   BranchInfo,
   GraphCommit,
   GraphData,
-  GraphLayoutNode
+  GraphLayoutNode,
+  CommitDetail,
+  CommitFile
 } from '@shared/types'
 import { basename } from 'path'
 
@@ -180,6 +182,84 @@ export async function getCommitGraph(repoPath: string): Promise<GraphData> {
   })
 
   return layoutGraph(commits)
+}
+
+export async function getCommitDetail(
+  repoPath: string,
+  hash: string
+): Promise<CommitDetail> {
+  const git = simpleGit(repoPath)
+
+  // Get commit metadata
+  const raw = await git.raw(['show', '--format=%H|%s|%b|%an|%ae|%aI', '--no-patch', hash])
+  const parts = raw.trim().split('|')
+  const [, subject, body, author, authorEmail, date] = parts
+
+  // Get changed files with stats
+  const diffRaw = await git.raw([
+    'diff-tree',
+    '--no-commit-id',
+    '-r',
+    '--numstat',
+    '--diff-filter=ACDMRT',
+    '-z',
+    hash
+  ])
+
+  const files: CommitFile[] = []
+  // --numstat with -z: fields are separated by \t and \0
+  // Format: additions\tdeletions\tpath\0 (or for renames: additions\tdeletions\t\0oldpath\0newpath\0)
+  const entries = diffRaw.split('\0').filter(Boolean)
+  for (const entry of entries) {
+    const match = entry.match(/^(\d+|-)\t(\d+|-)\t(.+)/)
+    if (match) {
+      files.push({
+        path: match[3],
+        status: 'modified',
+        additions: match[1] === '-' ? 0 : parseInt(match[1]),
+        deletions: match[2] === '-' ? 0 : parseInt(match[2])
+      })
+    }
+  }
+
+  // Get file statuses (A/M/D/R)
+  const statusRaw = await git.raw([
+    'diff-tree',
+    '--no-commit-id',
+    '-r',
+    '--name-status',
+    hash
+  ])
+  const statusLines = statusRaw.trim().split('\n').filter(Boolean)
+  const statusMap = new Map<string, string>()
+  for (const line of statusLines) {
+    const [status, ...pathParts] = line.split('\t')
+    const filePath = pathParts[pathParts.length - 1]
+    const statusChar = status.charAt(0)
+    const labels: Record<string, string> = {
+      A: 'added',
+      M: 'modified',
+      D: 'deleted',
+      R: 'renamed',
+      C: 'copied',
+      T: 'type-change'
+    }
+    statusMap.set(filePath, labels[statusChar] || 'modified')
+  }
+
+  for (const f of files) {
+    f.status = statusMap.get(f.path) || f.status
+  }
+
+  return {
+    hash,
+    message: subject || '',
+    body: body || '',
+    author: author || '',
+    authorEmail: authorEmail || '',
+    date: date || '',
+    files
+  }
 }
 
 function layoutGraph(commits: GraphCommit[]): GraphData {

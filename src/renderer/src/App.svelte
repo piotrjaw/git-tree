@@ -1,16 +1,22 @@
 <script lang="ts">
+  import type { CommitDetail } from '@shared/types'
   import Sidebar from './components/Sidebar.svelte'
   import CommitGraph from './components/CommitGraph.svelte'
+  import CommitDetailPanel from './components/CommitDetailPanel.svelte'
   import SettingsPanel from './components/SettingsPanel.svelte'
   import StatusBar from './components/StatusBar.svelte'
-  import { collapseAll, getShowSettings } from './stores/ui.svelte'
+  import { collapseAll, getShowSettings, getSelectedRepoPath } from './stores/ui.svelte'
   import { refreshRepo, refreshAll, addFolder } from './stores/repos.svelte'
   import { loadSettings, getSettings, addWatchedFolder } from './stores/settings.svelte'
 
   let sidebarWidth = $state(280)
   let resizing = $state(false)
+  let selectedCommitHash = $state<string | null>(null)
+  let commitDetail = $state<CommitDetail | null>(null)
+  let detailLoading = $state(false)
 
   let showSettings = $derived(getShowSettings())
+  let showDetail = $derived(selectedCommitHash !== null)
 
   // Initialize on mount
   $effect(() => {
@@ -21,17 +27,14 @@
     await loadSettings()
     const settings = getSettings()
 
-    // Reload repos from saved watched folders
     for (const folder of settings.watchedFolders) {
       await addFolder(folder)
     }
 
-    // Start polling
     const interval = setInterval(() => {
       refreshAll()
     }, settings.refreshIntervalMs)
 
-    // Listen for file watcher changes
     const unsubscribe = window.api.onRepoChanged((repoPath) => {
       refreshRepo(repoPath)
     })
@@ -40,6 +43,35 @@
       clearInterval(interval)
       unsubscribe()
     }
+  }
+
+  async function handleSelectCommit(hash: string) {
+    if (selectedCommitHash === hash) {
+      // Toggle off
+      selectedCommitHash = null
+      commitDetail = null
+      return
+    }
+
+    selectedCommitHash = hash
+    commitDetail = null
+    detailLoading = true
+
+    const repoPath = getSelectedRepoPath()
+    if (!repoPath) return
+
+    try {
+      commitDetail = await window.api.getCommitDetail(repoPath, hash)
+    } catch (err) {
+      console.error('Failed to load commit detail:', err)
+    } finally {
+      detailLoading = false
+    }
+  }
+
+  function handleCloseDetail() {
+    selectedCommitHash = null
+    commitDetail = null
   }
 
   // Keyboard shortcuts
@@ -55,7 +87,11 @@
       handleAddFolder()
     }
     if (e.key === 'Escape') {
-      collapseAll()
+      if (selectedCommitHash) {
+        handleCloseDetail()
+      } else {
+        collapseAll()
+      }
     }
   }
 
@@ -100,8 +136,14 @@
   <div class="resize-handle" onmousedown={startResize}></div>
 
   <main class="main-content">
-    <CommitGraph />
+    <CommitGraph onSelectCommit={handleSelectCommit} {selectedCommitHash} />
   </main>
+
+  {#if showDetail}
+    <aside class="detail-wrapper">
+      <CommitDetailPanel detail={commitDetail} loading={detailLoading} onclose={handleCloseDetail} />
+    </aside>
+  {/if}
 
   <StatusBar />
 </div>
@@ -114,6 +156,10 @@
     height: 100vh;
     background: var(--color-bg);
     color: var(--color-text);
+  }
+
+  .app:has(.detail-wrapper) {
+    grid-template-columns: auto 4px 1fr 350px;
   }
 
   .app.resizing {
@@ -149,6 +195,12 @@
     grid-column: 3;
     overflow: hidden;
     background: var(--color-bg);
+  }
+
+  .detail-wrapper {
+    grid-row: 1;
+    grid-column: 4;
+    overflow: hidden;
   }
 
   :global(.status-bar) {

@@ -90,11 +90,29 @@ export interface GraphData {
   branchColors: Record<string, string>
 }
 
+export interface CommitDetail {
+  hash: string
+  message: string
+  body: string
+  author: string
+  authorEmail: string
+  date: string
+  files: CommitFile[]
+}
+
+export interface CommitFile {
+  path: string
+  status: string
+  additions: number
+  deletions: number
+}
+
 export interface GitTreeAPI {
   scanFolder(folderPath: string): Promise<ScanResult>
   getRepoStatus(repoPath: string): Promise<RepoStatus>
   getAllStatuses(repoPaths: string[]): Promise<RepoStatus[]>
   getCommitGraph(repoPath: string): Promise<GraphData>
+  getCommitDetail(repoPath: string, hash: string): Promise<CommitDetail>
   pickFolder(): Promise<string | null>
   getSettings(): Promise<AppSettings>
   setSettings(settings: Partial<AppSettings>): Promise<void>
