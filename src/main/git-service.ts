@@ -9,7 +9,10 @@ import type {
   GraphData,
   GraphLayoutNode,
   CommitDetail,
-  CommitFile
+  CommitFile,
+  FileDiff,
+  DiffHunk,
+  DiffLine
 } from '@shared/types'
 import { basename } from 'path'
 
@@ -283,6 +286,105 @@ export async function getCommitDetail(
     date: date || '',
     files
   }
+}
+
+export async function getFileDiff(
+  repoPath: string,
+  hash: string,
+  filePath: string
+): Promise<FileDiff> {
+  const git = simpleGit(repoPath)
+
+  let oldContent = ''
+  let newContent = ''
+  let diffRaw = ''
+
+  if (hash === 'wip') {
+    // Working tree diff against HEAD
+    try {
+      oldContent = await git.show(['HEAD:' + filePath]).catch(() => '')
+    } catch {
+      oldContent = ''
+    }
+    try {
+      const { readFile } = await import('fs/promises')
+      const { join } = await import('path')
+      newContent = await readFile(join(repoPath, filePath), 'utf-8').catch(() => '')
+    } catch {
+      newContent = ''
+    }
+    try {
+      diffRaw = await git.diff([filePath])
+      if (!diffRaw) {
+        // Try staged diff
+        diffRaw = await git.diff(['--cached', filePath])
+      }
+    } catch {
+      diffRaw = ''
+    }
+  } else {
+    // Commit diff: show old (parent) and new (commit) versions
+    try {
+      oldContent = await git.show([hash + '~1:' + filePath]).catch(() => '')
+    } catch {
+      oldContent = ''
+    }
+    try {
+      newContent = await git.show([hash + ':' + filePath]).catch(() => '')
+    } catch {
+      newContent = ''
+    }
+    try {
+      diffRaw = await git.raw(['diff', hash + '~1', hash, '--', filePath])
+    } catch {
+      diffRaw = ''
+    }
+  }
+
+  const hunks = parseDiff(diffRaw)
+
+  return { path: filePath, oldContent, newContent, hunks }
+}
+
+function parseDiff(raw: string): DiffHunk[] {
+  const hunks: DiffHunk[] = []
+  const lines = raw.split('\n')
+  let currentHunk: DiffHunk | null = null
+  let oldLine = 0
+  let newLine = 0
+
+  for (const line of lines) {
+    const hunkHeader = line.match(/^@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@/)
+    if (hunkHeader) {
+      currentHunk = {
+        oldStart: parseInt(hunkHeader[1]),
+        oldLines: parseInt(hunkHeader[2] || '1'),
+        newStart: parseInt(hunkHeader[3]),
+        newLines: parseInt(hunkHeader[4] || '1'),
+        lines: []
+      }
+      hunks.push(currentHunk)
+      oldLine = currentHunk.oldStart
+      newLine = currentHunk.newStart
+      continue
+    }
+
+    if (!currentHunk) continue
+
+    if (line.startsWith('+')) {
+      currentHunk.lines.push({ type: 'add', oldLineNo: null, newLineNo: newLine, content: line.slice(1) })
+      newLine++
+    } else if (line.startsWith('-')) {
+      currentHunk.lines.push({ type: 'del', oldLineNo: oldLine, newLineNo: null, content: line.slice(1) })
+      oldLine++
+    } else if (line.startsWith(' ') || line === '') {
+      currentHunk.lines.push({ type: 'context', oldLineNo: oldLine, newLineNo: newLine, content: line.slice(1) })
+      oldLine++
+      newLine++
+    }
+  }
+
+  return hunks
 }
 
 export async function getWipDetail(repoPath: string): Promise<CommitDetail> {

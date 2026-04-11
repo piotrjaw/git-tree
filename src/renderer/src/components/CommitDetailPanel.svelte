@@ -5,9 +5,11 @@
     detail: CommitDetail | null
     loading: boolean
     onclose: () => void
+    onSelectFile?: (filePath: string) => void
+    selectedFilePath?: string | null
   }
 
-  let { detail, loading, onclose }: Props = $props()
+  let { detail, loading, onclose, onSelectFile, selectedFilePath = null }: Props = $props()
 
   const STATUS_ICONS: Record<string, { icon: string; color: string }> = {
     added: { icon: 'A', color: 'var(--color-success)' },
@@ -79,7 +81,12 @@
       <div class="file-list">
         {#each detail.files as file}
           {@const st = STATUS_ICONS[file.status] || STATUS_ICONS['modified']}
-          <div class="file-row">
+          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+          <div
+            class="file-row"
+            class:file-selected={selectedFilePath === file.path}
+            onclick={() => onSelectFile?.(file.path)}
+          >
             <span class="file-status" style="color: {st.color}">{st.icon}</span>
             <span class="file-path" title={file.path}>{file.path}</span>
             <span class="file-diff">
@@ -242,8 +249,16 @@
     min-height: 28px;
   }
 
+  .file-row {
+    cursor: pointer;
+  }
+
   .file-row:hover {
     background: var(--color-hover);
+  }
+
+  .file-row.file-selected {
+    background: var(--color-selected);
   }
 
   .file-status {

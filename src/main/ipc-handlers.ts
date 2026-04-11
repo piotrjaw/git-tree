@@ -3,6 +3,7 @@ import {
   getRepoStatus,
   getCommitGraph,
   getCommitDetail,
+  getFileDiff,
   getWipDetail,
   checkoutBranch
 } from './git-service'
@@ -35,6 +36,10 @@ export function registerIpcHandlers(window: BrowserWindow): void {
 
   ipcMain.handle('git:get-commit-detail', async (_event, repoPath: string, hash: string) => {
     return getCommitDetail(repoPath, hash)
+  })
+
+  ipcMain.handle('git:get-file-diff', async (_event, repoPath: string, hash: string, filePath: string) => {
+    return getFileDiff(repoPath, hash, filePath)
   })
 
   ipcMain.handle('git:get-wip-detail', async (_event, repoPath: string) => {

@@ -117,12 +117,35 @@ export interface CommitFile {
   deletions: number
 }
 
+export interface FileDiff {
+  path: string
+  oldContent: string
+  newContent: string
+  hunks: DiffHunk[]
+}
+
+export interface DiffHunk {
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  lines: DiffLine[]
+}
+
+export interface DiffLine {
+  type: 'add' | 'del' | 'context'
+  oldLineNo: number | null
+  newLineNo: number | null
+  content: string
+}
+
 export interface GitTreeAPI {
   scanFolder(folderPath: string): Promise<ScanResult>
   getRepoStatus(repoPath: string): Promise<RepoStatus>
   getAllStatuses(repoPaths: string[]): Promise<RepoStatus[]>
   getCommitGraph(repoPath: string): Promise<GraphData>
   getCommitDetail(repoPath: string, hash: string): Promise<CommitDetail>
+  getFileDiff(repoPath: string, hash: string, filePath: string): Promise<FileDiff>
   getWipDetail(repoPath: string): Promise<CommitDetail>
   checkoutBranch(repoPath: string, branch: string): Promise<{ success: boolean; error?: string }>
   pickFolder(): Promise<string | null>
