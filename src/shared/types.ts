@@ -63,10 +63,38 @@ export interface ScanResult {
   duration: number
 }
 
+export interface GraphCommit {
+  hash: string
+  hashShort: string
+  parents: string[]
+  message: string
+  author: string
+  authorEmail: string
+  date: string
+  refs: string[]
+}
+
+export interface GraphLayoutNode {
+  commit: GraphCommit
+  column: number
+  row: number
+  parentLinks: { fromCol: number; fromRow: number; toCol: number; toRow: number; color: string }[]
+  color: string
+  isMerge: boolean
+  isBranchTip: boolean
+}
+
+export interface GraphData {
+  nodes: GraphLayoutNode[]
+  totalColumns: number
+  branchColors: Record<string, string>
+}
+
 export interface GitTreeAPI {
   scanFolder(folderPath: string): Promise<ScanResult>
   getRepoStatus(repoPath: string): Promise<RepoStatus>
   getAllStatuses(repoPaths: string[]): Promise<RepoStatus[]>
+  getCommitGraph(repoPath: string): Promise<GraphData>
   pickFolder(): Promise<string | null>
   getSettings(): Promise<AppSettings>
   setSettings(settings: Partial<AppSettings>): Promise<void>

@@ -1,19 +1,14 @@
 <script lang="ts">
   import Sidebar from './components/Sidebar.svelte'
-  import DetailPanel from './components/DetailPanel.svelte'
+  import CommitGraph from './components/CommitGraph.svelte'
   import SettingsPanel from './components/SettingsPanel.svelte'
   import StatusBar from './components/StatusBar.svelte'
-  import { getSelectedRepoPath, collapseAll, getShowSettings } from './stores/ui.svelte'
-  import { getRepoByPath, refreshRepo, refreshAll, addFolder } from './stores/repos.svelte'
+  import { collapseAll, getShowSettings } from './stores/ui.svelte'
+  import { refreshRepo, refreshAll, addFolder } from './stores/repos.svelte'
   import { loadSettings, getSettings, addWatchedFolder } from './stores/settings.svelte'
 
   let sidebarWidth = $state(280)
   let resizing = $state(false)
-
-  let selectedRepo = $derived.by(() => {
-    const path = getSelectedRepoPath()
-    return path ? getRepoByPath(path) : undefined
-  })
 
   let showSettings = $derived(getShowSettings())
 
@@ -105,7 +100,7 @@
   <div class="resize-handle" onmousedown={startResize}></div>
 
   <main class="main-content">
-    <DetailPanel repo={selectedRepo} />
+    <CommitGraph />
   </main>
 
   <StatusBar />
