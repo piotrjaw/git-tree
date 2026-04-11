@@ -61,7 +61,11 @@
     if (!repoPath) return
 
     try {
-      commitDetail = await window.api.getCommitDetail(repoPath, hash)
+      if (hash === 'wip') {
+        commitDetail = await window.api.getWipDetail(repoPath)
+      } else {
+        commitDetail = await window.api.getCommitDetail(repoPath, hash)
+      }
     } catch (err) {
       console.error('Failed to load commit detail:', err)
     } finally {

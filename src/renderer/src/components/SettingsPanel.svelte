@@ -99,6 +99,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
+    padding-top: 36px; /* space for macOS titlebar drag region */
     border-bottom: 1px solid var(--color-border);
   }
 

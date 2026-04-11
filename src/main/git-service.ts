@@ -181,7 +181,30 @@ export async function getCommitGraph(repoPath: string): Promise<GraphData> {
     }
   })
 
-  return layoutGraph(commits)
+  const graph = layoutGraph(commits)
+
+  // Check for uncommitted changes
+  const status = await git.status()
+  const staged = status.staged.length
+  const modified = status.modified.length + status.deleted.length + status.renamed.length
+  const untracked = status.not_added.length
+
+  if (staged > 0 || modified > 0 || untracked > 0) {
+    // Find the HEAD commit node to attach WIP to
+    const headNode = graph.nodes.find((n) =>
+      n.commit.refs.some((r) => r.startsWith('HEAD'))
+    )
+    graph.wip = {
+      staged,
+      modified,
+      untracked,
+      headHash: headNode?.commit.hash ?? '',
+      headColumn: headNode?.column ?? 0,
+      headColor: headNode?.color ?? BRANCH_COLORS[0]
+    }
+  }
+
+  return graph
 }
 
 export async function getCommitDetail(
@@ -258,6 +281,44 @@ export async function getCommitDetail(
     author: author || '',
     authorEmail: authorEmail || '',
     date: date || '',
+    files
+  }
+}
+
+export async function getWipDetail(repoPath: string): Promise<CommitDetail> {
+  const git = simpleGit(repoPath)
+  const status = await git.status()
+
+  const files: CommitFile[] = []
+
+  for (const f of status.files) {
+    const isStaged = f.index && f.index !== ' ' && f.index !== '?'
+    const isUnstaged = f.working_dir && f.working_dir !== ' '
+    const isUntracked = f.working_dir === '?'
+
+    const statusLabel = isUntracked
+      ? 'untracked'
+      : isStaged && isUnstaged
+        ? 'modified (partially staged)'
+        : isStaged
+          ? 'staged'
+          : 'modified'
+
+    files.push({
+      path: f.path,
+      status: statusLabel,
+      additions: 0,
+      deletions: 0
+    })
+  }
+
+  return {
+    hash: 'wip',
+    message: 'Uncommitted changes',
+    body: '',
+    author: '',
+    authorEmail: '',
+    date: new Date().toISOString(),
     files
   }
 }

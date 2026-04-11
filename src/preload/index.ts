@@ -7,6 +7,7 @@ const api: GitTreeAPI = {
   getAllStatuses: (repoPaths) => ipcRenderer.invoke('git:get-all-statuses', repoPaths),
   getCommitGraph: (repoPath) => ipcRenderer.invoke('git:get-commit-graph', repoPath),
   getCommitDetail: (repoPath, hash) => ipcRenderer.invoke('git:get-commit-detail', repoPath, hash),
+  getWipDetail: (repoPath) => ipcRenderer.invoke('git:get-wip-detail', repoPath),
   checkoutBranch: (repoPath, branch) => ipcRenderer.invoke('git:checkout-branch', repoPath, branch),
   pickFolder: () => ipcRenderer.invoke('dialog:pick-folder'),
   getSettings: () => ipcRenderer.invoke('settings:get'),

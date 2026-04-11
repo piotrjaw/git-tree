@@ -84,10 +84,20 @@ export interface GraphLayoutNode {
   isBranchTip: boolean
 }
 
+export interface WipStatus {
+  staged: number
+  modified: number
+  untracked: number
+  headHash: string
+  headColumn: number
+  headColor: string
+}
+
 export interface GraphData {
   nodes: GraphLayoutNode[]
   totalColumns: number
   branchColors: Record<string, string>
+  wip: WipStatus | null
 }
 
 export interface CommitDetail {
@@ -113,6 +123,7 @@ export interface GitTreeAPI {
   getAllStatuses(repoPaths: string[]): Promise<RepoStatus[]>
   getCommitGraph(repoPath: string): Promise<GraphData>
   getCommitDetail(repoPath: string, hash: string): Promise<CommitDetail>
+  getWipDetail(repoPath: string): Promise<CommitDetail>
   checkoutBranch(repoPath: string, branch: string): Promise<{ success: boolean; error?: string }>
   pickFolder(): Promise<string | null>
   getSettings(): Promise<AppSettings>

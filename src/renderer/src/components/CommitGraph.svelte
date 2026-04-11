@@ -50,12 +50,18 @@
     }
   }
 
+  // WIP row
+  let hasWip = $derived(graphData?.wip != null)
+  let wipOffset = $derived(hasWip ? ROW_HEIGHT : 0)
+  let wipCx = $derived(graphData?.wip ? GRAPH_LEFT_PAD + graphData.wip.headColumn * COL_WIDTH + COL_WIDTH / 2 : 0)
+
   // Virtual scroll calculations
-  let totalHeight = $derived(graphData ? graphData.nodes.length * ROW_HEIGHT : 0)
+  let totalHeight = $derived(graphData ? graphData.nodes.length * ROW_HEIGHT + wipOffset : 0)
   let graphColumnWidth = $derived(graphData ? GRAPH_LEFT_PAD + graphData.totalColumns * COL_WIDTH + 16 : 80)
 
   let visibleRange = $derived.by(() => {
-    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS)
+    const adjustedScroll = Math.max(0, scrollTop - wipOffset)
+    const start = Math.max(0, Math.floor(adjustedScroll / ROW_HEIGHT) - BUFFER_ROWS)
     const visibleCount = Math.ceil(containerHeight / ROW_HEIGHT) + BUFFER_ROWS * 2
     const end = graphData ? Math.min(graphData.nodes.length, start + visibleCount) : 0
     return { start, end }
@@ -104,6 +110,7 @@
     canvas.height = visibleHeight * dpr
     canvas.style.width = `${width}px`
     canvas.style.height = `${visibleHeight}px`
+    canvas.style.marginTop = '0'
 
     const ctx = canvas.getContext('2d')!
     ctx.scale(dpr, dpr)
@@ -182,6 +189,21 @@
       }
     }
 
+    // Draw dashed line from WIP row (above canvas) to HEAD node
+    if (data.wip && startRow === 0) {
+      const wx = colX(data.wip.headColumn)
+      const headY = rowY(0)
+
+      ctx.strokeStyle = data.wip.headColor
+      ctx.lineWidth = 2
+      ctx.setLineDash([4, 3])
+      ctx.beginPath()
+      ctx.moveTo(wx, 0) // top edge of canvas = bottom of WIP row
+      ctx.lineTo(wx, headY)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
     ctx.lineWidth = 2
   }
 
@@ -241,6 +263,37 @@
 {:else if graphData}
   <div class="graph-container" bind:this={containerEl} onscroll={handleScroll}>
     <div class="graph-scroll-area" style="height: {totalHeight}px">
+
+      <!-- WIP row (fixed at top of scroll area) -->
+      {#if graphData.wip}
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+        <div
+          class="wip-row"
+          class:selected={selectedCommitHash === 'wip'}
+          style="height: {ROW_HEIGHT}px"
+          onclick={() => onSelectCommit?.('wip')}
+        >
+          <svg class="wip-svg" width={graphColumnWidth} height={ROW_HEIGHT}>
+            <line x1={wipCx} y1={ROW_HEIGHT / 2 + NODE_RADIUS + 2} x2={wipCx} y2={ROW_HEIGHT} stroke={graphData.wip.headColor} stroke-width="2" stroke-dasharray="4 3" />
+            <circle cx={wipCx} cy={ROW_HEIGHT / 2} r={NODE_RADIUS + 1} fill="none" stroke={graphData.wip.headColor} stroke-width="2" stroke-dasharray="3 2" />
+          </svg>
+          <div class="wip-info" style="margin-left: {graphColumnWidth}px">
+            <span class="wip-label">// WIP</span>
+            <span class="wip-stats">
+              {#if graphData.wip.staged > 0}
+                <span class="wip-staged">{@html '&#9998;'} {graphData.wip.staged}</span>
+              {/if}
+              {#if graphData.wip.modified > 0}
+                <span class="wip-modified">+ {graphData.wip.modified}</span>
+              {/if}
+              {#if graphData.wip.untracked > 0}
+                <span class="wip-untracked">{@html '&#128196;'} {graphData.wip.untracked}</span>
+              {/if}
+            </span>
+          </div>
+        </div>
+      {/if}
+
       <div
         class="graph-visible"
         style="transform: translateY({visibleRange.start * ROW_HEIGHT}px)"
@@ -253,7 +306,7 @@
         ></canvas>
 
         <!-- Commit rows -->
-        <div class="commit-rows" style="margin-left: {graphColumnWidth}px">
+        <div class="commit-rows">
           {#each visibleNodes as node (node.commit.hash)}
             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <div
@@ -377,6 +430,58 @@
     min-width: 0;
   }
 
+  .wip-row {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .wip-row:hover {
+    background: var(--color-hover);
+  }
+
+  .wip-row.selected {
+    background: var(--color-selected);
+  }
+
+  .wip-svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  .wip-info {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 12px;
+    font-size: 13px;
+    padding-right: 12px;
+  }
+
+  .wip-label {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .wip-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .wip-staged {
+    color: var(--color-success);
+  }
+
+  .wip-modified {
+    color: var(--color-warning);
+  }
+
+  .wip-untracked {
+    color: var(--color-text-muted);
+  }
+
   .commit-row {
     display: flex;
     align-items: center;
@@ -384,9 +489,6 @@
     padding: 0 12px 0 0;
     font-size: 13px;
     white-space: nowrap;
-  }
-
-  .commit-row {
     cursor: pointer;
   }
 
