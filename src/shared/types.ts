@@ -113,6 +113,7 @@ export interface GitTreeAPI {
   getAllStatuses(repoPaths: string[]): Promise<RepoStatus[]>
   getCommitGraph(repoPath: string): Promise<GraphData>
   getCommitDetail(repoPath: string, hash: string): Promise<CommitDetail>
+  checkoutBranch(repoPath: string, branch: string): Promise<{ success: boolean; error?: string }>
   pickFolder(): Promise<string | null>
   getSettings(): Promise<AppSettings>
   setSettings(settings: Partial<AppSettings>): Promise<void>

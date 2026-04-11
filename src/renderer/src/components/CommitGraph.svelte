@@ -4,10 +4,11 @@
 
   interface Props {
     onSelectCommit?: (hash: string) => void
+    onCheckoutBranch?: (branch: string) => void
     selectedCommitHash?: string | null
   }
 
-  let { onSelectCommit, selectedCommitHash = null }: Props = $props()
+  let { onSelectCommit, onCheckoutBranch, selectedCommitHash = null }: Props = $props()
 
   const ROW_HEIGHT = 32
   const COL_WIDTH = 16
@@ -202,11 +203,21 @@
     return `${Math.floor(days / 365)}y ago`
   }
 
-  function refLabel(ref: string): { name: string; type: 'head' | 'branch' | 'tag' | 'remote' } {
-    if (ref.startsWith('HEAD -> ')) return { name: ref.replace('HEAD -> ', ''), type: 'head' }
-    if (ref.startsWith('tag: ')) return { name: ref.replace('tag: ', ''), type: 'tag' }
-    if (ref.includes('/')) return { name: ref, type: 'remote' }
-    return { name: ref, type: 'branch' }
+  function refLabel(ref: string): { name: string; checkoutName: string; type: 'head' | 'branch' | 'tag' | 'remote' } {
+    if (ref.startsWith('HEAD -> ')) {
+      const name = ref.replace('HEAD -> ', '')
+      return { name, checkoutName: name, type: 'head' }
+    }
+    if (ref.startsWith('tag: ')) {
+      const name = ref.replace('tag: ', '')
+      return { name, checkoutName: name, type: 'tag' }
+    }
+    // origin/foo, upstream/foo — remote tracking refs; checkout strips the remote prefix
+    const remoteMatch = ref.match(/^([^/]+)\/(.+)$/)
+    if (remoteMatch && ['origin', 'upstream', 'remote'].includes(remoteMatch[1])) {
+      return { name: ref, checkoutName: remoteMatch[2], type: 'remote' }
+    }
+    return { name: ref, checkoutName: ref, type: 'branch' }
   }
 </script>
 
@@ -249,14 +260,26 @@
               class="commit-row"
               class:selected={selectedCommitHash === node.commit.hash}
               style="height: {ROW_HEIGHT}px"
-              onclick={() => onSelectCommit?.(node.commit.hash)}
+              onclick={(e) => {
+                if (e.target instanceof HTMLElement && e.target.closest('.ref-badge')) return
+                onSelectCommit?.(node.commit.hash)
+              }}
             >
               <!-- Ref badges -->
               {#if node.commit.refs.length > 0}
                 <span class="refs">
                   {#each node.commit.refs as ref}
                     {@const r = refLabel(ref)}
-                    <span class="ref-badge ref-{r.type}" style={r.type === 'head' ? `background: ${node.color}` : ''}>{r.name}</span>
+                    {#if r.type === 'branch' || r.type === 'head' || r.type === 'remote'}
+                      <button
+                        class="ref-badge ref-{r.type} clickable"
+                        style={r.type === 'head' ? `background: ${node.color}` : ''}
+                        onclick={(e) => { e.stopPropagation(); onCheckoutBranch?.(r.checkoutName); }}
+                        title="Checkout {r.checkoutName}"
+                      >{r.name}</button>
+                    {:else}
+                      <span class="ref-badge ref-{r.type}">{r.name}</span>
+                    {/if}
                   {/each}
                 </span>
               {/if}
@@ -388,15 +411,29 @@
     font-weight: 600;
     line-height: 1.4;
     flex-shrink: 0;
+    border: none;
+    font-family: inherit;
+  }
+
+  .ref-badge.clickable {
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+
+  .ref-badge.clickable:hover {
+    filter: brightness(1.3);
   }
 
   .ref-head {
     color: #fff;
+    outline: 2px solid #fff;
+    outline-offset: -1px;
   }
 
   .ref-branch {
-    background: var(--color-accent);
-    color: #fff;
+    background: rgba(88, 166, 255, 0.2);
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
   }
 
   .ref-tag {
@@ -408,6 +445,7 @@
   .ref-remote {
     background: var(--color-neutral-bg);
     color: var(--color-text-muted);
+    border: 1px solid transparent;
   }
 
   .commit-message {

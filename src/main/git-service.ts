@@ -262,6 +262,19 @@ export async function getCommitDetail(
   }
 }
 
+export async function checkoutBranch(
+  repoPath: string,
+  branch: string
+): Promise<{ success: boolean; error?: string }> {
+  const git = simpleGit(repoPath)
+  try {
+    await git.checkout(branch)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 function layoutGraph(commits: GraphCommit[]): GraphData {
   const nodes: GraphLayoutNode[] = []
   let lanes: (string | null)[] = []

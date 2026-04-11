@@ -74,6 +74,23 @@
     commitDetail = null
   }
 
+  // Graph key incremented to force CommitGraph to reload
+  let graphKey = $state(0)
+
+  async function handleCheckoutBranch(branch: string) {
+    const repoPath = getSelectedRepoPath()
+    if (!repoPath) return
+
+    const result = await window.api.checkoutBranch(repoPath, branch)
+    if (result.success) {
+      // Refresh repo status in sidebar and reload graph
+      await refreshRepo(repoPath)
+      graphKey++
+    } else {
+      console.error('Checkout failed:', result.error)
+    }
+  }
+
   // Keyboard shortcuts
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey
@@ -136,7 +153,9 @@
   <div class="resize-handle" onmousedown={startResize}></div>
 
   <main class="main-content">
-    <CommitGraph onSelectCommit={handleSelectCommit} {selectedCommitHash} />
+    {#key graphKey}
+      <CommitGraph onSelectCommit={handleSelectCommit} onCheckoutBranch={handleCheckoutBranch} {selectedCommitHash} />
+    {/key}
   </main>
 
   {#if showDetail}
