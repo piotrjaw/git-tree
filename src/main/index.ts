@@ -45,6 +45,8 @@ function createWindow(): void {
   }
 }
 
+app.setName('Git Tree')
+
 app.whenReady().then(() => {
   createWindow()
 

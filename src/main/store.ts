@@ -39,7 +39,7 @@ function ensureLoaded(): StoreData {
   } catch {
     data = { ...defaults }
   }
-  return data
+  return data!
 }
 
 function save(): void {

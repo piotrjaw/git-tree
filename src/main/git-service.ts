@@ -11,8 +11,7 @@ import type {
   CommitDetail,
   CommitFile,
   FileDiff,
-  DiffHunk,
-  DiffLine
+  DiffHunk
 } from '@shared/types'
 import { basename } from 'path'
 
@@ -188,9 +187,17 @@ export async function getCommitGraph(repoPath: string): Promise<GraphData> {
 
   // Check for uncommitted changes
   const status = await git.status()
-  const staged = status.staged.length
-  const modified = status.modified.length + status.deleted.length + status.renamed.length
-  const untracked = status.not_added.length
+  let staged = 0
+  let modified = 0
+  let untracked = 0
+  for (const f of status.files) {
+    if (f.working_dir === '?') {
+      untracked++
+    } else {
+      if (f.index && f.index !== ' ' && f.index !== '?') staged++
+      if (f.working_dir && f.working_dir !== ' ') modified++
+    }
+  }
 
   if (staged > 0 || modified > 0 || untracked > 0) {
     // Find the HEAD commit node to attach WIP to
@@ -391,6 +398,36 @@ export async function getWipDetail(repoPath: string): Promise<CommitDetail> {
   const git = simpleGit(repoPath)
   const status = await git.status()
 
+  // Get line stats for staged and unstaged changes
+  const statsMap = new Map<string, { additions: number; deletions: number }>()
+
+  try {
+    // Staged changes
+    const stagedNumstat = await git.diff(['--cached', '--numstat'])
+    for (const line of stagedNumstat.split('\n').filter(Boolean)) {
+      const match = line.match(/^(\d+|-)\t(\d+|-)\t(.+)/)
+      if (match) {
+        const adds = match[1] === '-' ? 0 : parseInt(match[1])
+        const dels = match[2] === '-' ? 0 : parseInt(match[2])
+        statsMap.set(match[3], { additions: adds, deletions: dels })
+      }
+    }
+  } catch { /* no staged changes */ }
+
+  try {
+    // Unstaged changes
+    const unstagedNumstat = await git.diff(['--numstat'])
+    for (const line of unstagedNumstat.split('\n').filter(Boolean)) {
+      const match = line.match(/^(\d+|-)\t(\d+|-)\t(.+)/)
+      if (match) {
+        const existing = statsMap.get(match[3]) || { additions: 0, deletions: 0 }
+        existing.additions += match[1] === '-' ? 0 : parseInt(match[1])
+        existing.deletions += match[2] === '-' ? 0 : parseInt(match[2])
+        statsMap.set(match[3], existing)
+      }
+    }
+  } catch { /* no unstaged changes */ }
+
   const files: CommitFile[] = []
 
   for (const f of status.files) {
@@ -406,11 +443,13 @@ export async function getWipDetail(repoPath: string): Promise<CommitDetail> {
           ? 'staged'
           : 'modified'
 
+    const stats = statsMap.get(f.path) || { additions: 0, deletions: 0 }
+
     files.push({
       path: f.path,
       status: statusLabel,
-      additions: 0,
-      deletions: 0
+      additions: stats.additions,
+      deletions: stats.deletions
     })
   }
 
@@ -553,5 +592,5 @@ function layoutGraph(commits: GraphCommit[]): GraphData {
 
   const totalColumns = Math.max(1, ...nodes.map((n) => n.column + 1))
 
-  return { nodes, totalColumns, branchColors }
+  return { nodes, totalColumns, branchColors, wip: null }
 }

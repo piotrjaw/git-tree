@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1b2e"/>
+      <stop offset="100%" stop-color="#0d0e1a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- Main branch (blue) -->
+  <line x1="380" y1="180" x2="380" y2="844" stroke="#58a6ff" stroke-width="36" stroke-linecap="round"/>
+
+  <!-- Feature branch (green) - forks right then merges back -->
+  <path d="M 380 340 C 380 420, 620 380, 620 460" stroke="#3fb950" stroke-width="36" fill="none" stroke-linecap="round"/>
+  <line x1="620" y1="460" x2="620" y2="580" stroke="#3fb950" stroke-width="36" stroke-linecap="round"/>
+  <path d="M 620 580 C 620 660, 380 620, 380 700" stroke="#3fb950" stroke-width="36" fill="none" stroke-linecap="round"/>
+
+  <!-- Commit nodes on main branch -->
+  <circle cx="380" cy="180" r="28" fill="#58a6ff" stroke="#1a1b2e" stroke-width="10"/>
+  <circle cx="380" cy="340" r="28" fill="#58a6ff" stroke="#1a1b2e" stroke-width="10"/>
+  <circle cx="380" cy="700" r="28" fill="#58a6ff" stroke="#1a1b2e" stroke-width="10"/>
+  <circle cx="380" cy="844" r="28" fill="#58a6ff" stroke="#1a1b2e" stroke-width="10"/>
+
+  <!-- Commit nodes on feature branch -->
+  <circle cx="620" cy="460" r="28" fill="#3fb950" stroke="#1a1b2e" stroke-width="10"/>
+  <circle cx="620" cy="580" r="28" fill="#3fb950" stroke="#1a1b2e" stroke-width="10"/>
+</svg>
