@@ -89,6 +89,7 @@ export interface WipStatus {
   modified: number
   untracked: number
   headHash: string
+  headRow: number
   headColumn: number
   headColor: string
 }

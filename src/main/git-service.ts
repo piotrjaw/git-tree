@@ -158,6 +158,9 @@ const BRANCH_COLORS = [
 export async function getCommitGraph(repoPath: string): Promise<GraphData> {
   const git = simpleGit(repoPath)
 
+  // Fetch latest from all remotes (non-blocking — don't fail if offline)
+  await git.fetch(['--all', '--prune']).catch(() => {})
+
   // Get all commits with parents and refs, topo-order for correct graph layout
   const raw = await git.raw([
     'log',
@@ -209,6 +212,7 @@ export async function getCommitGraph(repoPath: string): Promise<GraphData> {
       modified,
       untracked,
       headHash: headNode?.commit.hash ?? '',
+      headRow: headNode?.row ?? 0,
       headColumn: headNode?.column ?? 0,
       headColor: headNode?.color ?? BRANCH_COLORS[0]
     }
@@ -501,6 +505,12 @@ function layoutGraph(commits: GraphCommit[]): GraphData {
     if (idx !== -1) return idx
     lanes.push(null)
     return lanes.length - 1
+  }
+
+  // Pre-seed lane 0 with the HEAD commit so the current branch is always leftmost
+  const headCommit = commits.find((c) => c.refs.some((r) => r.startsWith('HEAD')))
+  if (headCommit) {
+    lanes.push(headCommit.hash)
   }
 
   for (let row = 0; row < commits.length; row++) {

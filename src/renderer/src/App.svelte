@@ -6,7 +6,7 @@
   import FileDiffViewer from './components/FileDiffViewer.svelte'
   import SettingsPanel from './components/SettingsPanel.svelte'
   import StatusBar from './components/StatusBar.svelte'
-  import { getShowSettings, getSelectedRepoPath } from './stores/ui.svelte'
+  import { getShowSettings, getSelectedRepoPath, triggerRefresh } from './stores/ui.svelte'
   import { refreshRepo, refreshAll, addFolder } from './stores/repos.svelte'
   import { loadSettings, getSettings, addWatchedFolder } from './stores/settings.svelte'
 
@@ -50,10 +50,12 @@
 
     const interval = setInterval(() => {
       refreshAll()
+      triggerRefresh()
     }, settings.refreshIntervalMs)
 
     const unsubscribe = window.api.onRepoChanged((repoPath) => {
       refreshRepo(repoPath)
+      triggerRefresh()
     })
 
     return () => {
@@ -127,9 +129,6 @@
     commitDetail = null
   }
 
-  // Graph key incremented to force CommitGraph to reload
-  let graphKey = $state(0)
-
   async function handleCheckoutBranch(branch: string) {
     const repoPath = getSelectedRepoPath()
     if (!repoPath) return
@@ -138,7 +137,7 @@
     if (result.success) {
       // Refresh repo status in sidebar and reload graph
       await refreshRepo(repoPath)
-      graphKey++
+      triggerRefresh()
     } else {
       console.error('Checkout failed:', result.error)
     }
@@ -225,9 +224,7 @@
   <div class="resize-handle" onmousedown={startResize}></div>
 
   <main class="main-content">
-    {#key graphKey}
-      <CommitGraph onSelectCommit={handleSelectCommit} onCheckoutBranch={handleCheckoutBranch} {selectedCommitHash} />
-    {/key}
+    <CommitGraph onSelectCommit={handleSelectCommit} onCheckoutBranch={handleCheckoutBranch} {selectedCommitHash} />
 
     {#if showDiff}
       <FileDiffViewer diff={fileDiff} loading={diffLoading} onclose={handleCloseDiff} />

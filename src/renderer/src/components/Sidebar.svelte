@@ -11,7 +11,7 @@
     addWatchedFolder,
     loadSettings
   } from '../stores/settings.svelte'
-  import { getShowSettings, setShowSettings } from '../stores/ui.svelte'
+  import { getShowSettings, setShowSettings, triggerRefresh } from '../stores/ui.svelte'
 
   const ICON_REFRESH = '\u21BB'
   const ICON_LOADING = '\u23F3'
@@ -34,6 +34,7 @@
 
   async function handleRefresh() {
     await refreshAll()
+    triggerRefresh()
   }
 
   let repos = $derived(getRepos())

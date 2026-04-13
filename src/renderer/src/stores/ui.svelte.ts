@@ -1,6 +1,7 @@
 let selectedRepoPath = $state<string | null>(null)
 let expandedNodes = $state<Set<string>>(new Set())
 let showSettings = $state(false)
+let refreshCounter = $state(0)
 
 export function getSelectedRepoPath(): string | null {
   return selectedRepoPath
@@ -34,4 +35,12 @@ export function getShowSettings(): boolean {
 
 export function setShowSettings(value: boolean): void {
   showSettings = value
+}
+
+export function getRefreshCounter(): number {
+  return refreshCounter
+}
+
+export function triggerRefresh(): void {
+  refreshCounter++
 }

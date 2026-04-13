@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GraphData, GraphLayoutNode } from '@shared/types'
-  import { getSelectedRepoPath } from '../stores/ui.svelte'
+  import { getSelectedRepoPath, getRefreshCounter } from '../stores/ui.svelte'
 
   interface Props {
     onSelectCommit?: (hash: string) => void
@@ -27,9 +27,11 @@
 
   let selectedRepoPath = $derived(getSelectedRepoPath())
 
-  // Load graph when repo changes
+  // Load graph when repo changes or refresh is triggered
+  let refreshCount = $derived(getRefreshCounter())
   $effect(() => {
     const path = selectedRepoPath
+    const _refresh = refreshCount // track dependency
     if (path) {
       loadGraph(path)
     } else {
@@ -189,19 +191,22 @@
       }
     }
 
-    // Draw dashed line from WIP row (above canvas) to HEAD node
-    if (data.wip && startRow === 0) {
+    // Draw dashed line from WIP row (above canvas) down to HEAD node
+    if (data.wip) {
       const wx = colX(data.wip.headColumn)
-      const headY = rowY(0)
+      const headY = rowY(data.wip.headRow)
 
-      ctx.strokeStyle = data.wip.headColor
-      ctx.lineWidth = 2
-      ctx.setLineDash([4, 3])
-      ctx.beginPath()
-      ctx.moveTo(wx, 0) // top edge of canvas = bottom of WIP row
-      ctx.lineTo(wx, headY)
-      ctx.stroke()
-      ctx.setLineDash([])
+      // Only draw if the line crosses through the visible area
+      if (headY >= -ROW_HEIGHT && 0 <= visibleHeight + ROW_HEIGHT) {
+        ctx.strokeStyle = data.wip.headColor
+        ctx.lineWidth = 2
+        ctx.setLineDash([4, 3])
+        ctx.beginPath()
+        ctx.moveTo(wx, Math.max(0, rowY(-1))) // top edge or above
+        ctx.lineTo(wx, headY)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
     }
 
     ctx.lineWidth = 2
